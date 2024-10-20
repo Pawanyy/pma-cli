@@ -17,7 +17,6 @@ export async function runCLI() {
     .version('1.0.0')
     .description('A CLI tool for analyzing web pages')
     .option('-u, --url <url>', 'URL of the web page to analyze')
-    .option('-h, --html <html>', 'HTML content to analyze')
     .parse(process.argv);
 
   const options = program.opts();
@@ -121,3 +120,14 @@ function displayResults(results: AnalysisResults) {
   logSummary('Requests by Domain', results.requestsByDomain);
   logSummary('Requests by File', results.requestsByFile, formatBytes);
 }
+
+process.on('SIGINT', () => {
+  console.log(chalk.red('\nProcess terminated. Cleaning up...'));
+  process.exit(0);
+});
+
+// Catch unhandled promise rejections
+process.on('unhandledRejection', (reason, promise) => {
+  console.error(chalk.red('\nUnhandled Rejection at:', reason));
+  process.exit(1);
+});
