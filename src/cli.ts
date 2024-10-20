@@ -8,7 +8,6 @@ import { analyzeWebPage } from './analyzer.js';
 import { launchBrowser, createPage } from './browser.js';
 import { formatBytes } from './utils.js';
 import { AnalysisResults } from './types.js';
-import CliTable3, { HorizontalAlignment, Table, TableOptions } from 'cli-table3';
 
 export async function runCLI() {
   console.log(gradient.pastel.multiline(figlet.textSync('Web Analyzer')));
@@ -108,14 +107,6 @@ function displayResults(results: AnalysisResults) {
     ["Requests", results.numberOfRequests]
   ]);
 
-  // Content Size by Content Type
-  const contentSizeRows = Object.entries(results.contentSizeByType).map(([type, size]) => [
-    type, formatBytes(size)
-  ]);
-  const totalContentTypeSize = Object.entries(results.contentSizeByType).reduce((total, [, size]) => total + Number(size), 0);
-  console.log(chalk.cyan('\nContent Size by Content Type:'));
-  logTextAsTable(contentSizeRows, ["Total", formatBytes(totalContentTypeSize)]);
-
   // Reusable logSummary function with dynamic alignment
   const logSummary = (title: string, data: { [key: string]: number }, formatValue: (v: number) => string | number = v => v) => {
     const rows = Object.entries(data).map(([key, value]) => [key, formatValue(value)]);
@@ -124,6 +115,7 @@ function displayResults(results: AnalysisResults) {
     logTextAsTable(rows, ["Total", formatValue(total)]);
   };
 
+  logSummary('Content Size by Content Type', results.contentSizeByType, formatBytes);
   logSummary('Content Size by Domain', results.contentSizeByDomain, formatBytes);
   logSummary('Requests by Content Type', results.requestsByType);
   logSummary('Requests by Domain', results.requestsByDomain);
