@@ -6,6 +6,9 @@ import inquirer from 'inquirer';
 import { createSpinner } from 'nanospinner';
 import { analyzeWebPage } from './analyzer.js';
 import { launchBrowser, createPage } from './browser.js';
+import { formatBytes } from './utils.js';
+import { AnalysisResults } from './types.js';
+import CliTable3, { HorizontalAlignment, Table, TableOptions } from 'cli-table3';
 
 export async function runCLI() {
   console.log(gradient.pastel.multiline(figlet.textSync('Web Analyzer')));
@@ -73,33 +76,56 @@ export async function runCLI() {
   } catch (error) {
     spinner.error({ text: 'Analysis failed!' });
     console.error(chalk.red('Error:'), error);
+    process.exit(1);
   }
 }
+function displayResults(results: AnalysisResults) {
+  console.log(chalk.bold.cyan('\nAnalysis Results:'));
 
-function displayResults(results: any) {
-  console.log(chalk.cyan('\nAnalysis Results:'));
-  console.log(chalk.yellow('Performance Grade:'), results.performanceGrade);
-  console.log(chalk.yellow('Page Size:'), results.pageSize);
-  console.log(chalk.yellow('Load Time:'), results.loadTime);
-  console.log(chalk.yellow('Number of Requests:'), results.numberOfRequests);
+  const logTextAsTable = (rows: (string | number)[][], totalRow: (string | number)[] = []) => {
+    const maxLabelLength = Math.max(...rows.map(row => String(row[0]).length));
+    const maxValueLength = Math.max(...rows.map(row => String(row[1]).length));
+    const padding = 1; // Additional padding for space after the colon
 
+    rows.forEach(([label, value]) => {
+      const labelStr = String(label).padEnd(maxLabelLength + padding, ' ');
+      const valStr = String(value).padStart(maxValueLength + padding);
+      console.log(chalk.yellow(`${labelStr}:`), valStr);
+    });
+
+    if (totalRow.length > 0) {
+      const totalLabelStr = String(totalRow[0]).padEnd(maxLabelLength + padding, ' ');
+      const totalValStr = String(totalRow[1]).padStart(maxValueLength + padding);
+      console.log(chalk.bold.white(`${totalLabelStr}:`), totalValStr);
+    }
+  };
+
+  // Performance Summary
+  logTextAsTable([
+    ["Performance grade", results.performanceGrade],
+    ["Page size", formatBytes(results.pageSize)],
+    ["Load time", results.loadTime],
+    ["Requests", results.numberOfRequests]
+  ]);
+
+  // Content Size by Content Type
+  const contentSizeRows = Object.entries(results.contentSizeByType).map(([type, size]) => [
+    type, formatBytes(size)
+  ]);
+  const totalContentTypeSize = Object.entries(results.contentSizeByType).reduce((total, [, size]) => total + Number(size), 0);
   console.log(chalk.cyan('\nContent Size by Content Type:'));
-  Object.entries(results.contentSizeByType).forEach(([type, size]) => {
-    console.log(chalk.yellow(`${type}:`), size);
-  });
+  logTextAsTable(contentSizeRows, ["Total", formatBytes(totalContentTypeSize)]);
 
-  console.log(chalk.cyan('\nContent Size by Domain:'));
-  Object.entries(results.contentSizeByDomain).forEach(([domain, size]) => {
-    console.log(chalk.yellow(`${domain}:`), size);
-  });
+  // Reusable logSummary function with dynamic alignment
+  const logSummary = (title: string, data: { [key: string]: number }, formatValue: (v: number) => string | number = v => v) => {
+    const rows = Object.entries(data).map(([key, value]) => [key, formatValue(value)]);
+    const total = Object.entries(data).reduce((acc, [, value]) => acc + Number(value), 0); // Assuming value is numeric
+    console.log(chalk.bold.cyan(`\n${title}:`));
+    logTextAsTable(rows, ["Total", formatValue(total)]);
+  };
 
-  console.log(chalk.cyan('\nRequests by Content Type:'));
-  Object.entries(results.requestsByType).forEach(([type, count]) => {
-    console.log(chalk.yellow(`${type}:`), count);
-  });
-
-  console.log(chalk.cyan('\nRequests by Domain:'));
-  Object.entries(results.requestsByDomain).forEach(([domain, count]) => {
-    console.log(chalk.yellow(`${domain}:`), count);
-  });
+  logSummary('Content Size by Domain', results.contentSizeByDomain, formatBytes);
+  logSummary('Requests by Content Type', results.requestsByType);
+  logSummary('Requests by Domain', results.requestsByDomain);
+  logSummary('Requests by File', results.requestsByFile, formatBytes);
 }
