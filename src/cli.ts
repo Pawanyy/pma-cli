@@ -10,13 +10,15 @@ import { formatBytes } from './utils.js';
 import { AnalysisResults } from './types.js';
 
 export async function runCLI() {
-  console.log(gradient.pastel.multiline(figlet.textSync('Web Analyzer')));
+  console.log(gradient.pastel.multiline(figlet.textSync('PMA CLI')));
 
   const program = new Command();
   program
-    .version('1.0.0')
+    .name('pma')
+    .version('1.0.0', '-v')
     .description('A CLI tool for analyzing web pages')
     .option('-u, --url <url>', 'URL of the web page to analyze')
+    .option('-f, --file <filePath>', 'File Path of the HTML to analyze')
     .parse(process.argv);
 
   const options = program.opts();
@@ -49,7 +51,7 @@ export async function runCLI() {
         {
           type: 'input',
           name: 'html',
-          message: 'Enter the HTML content to analyze:',
+          message: 'Enter the HTML filePath to analyze:',
           validate: (input) => input.trim() !== '',
         },
       ]);
