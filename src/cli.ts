@@ -8,6 +8,7 @@ import { analyzeWebPage } from './analyzer.js';
 import { launchBrowser, createPage } from './browser.js';
 import { formatBytes } from './utils.js';
 import { AnalysisResults } from './types.js';
+import { isValidUrl, isValidFilePath, getValidFilePath } from './utils.js';
 
 export async function runCLI() {
   console.log(gradient.pastel.multiline(figlet.textSync('PMA CLI')));
@@ -15,18 +16,20 @@ export async function runCLI() {
   const program = new Command();
   program
     .name('pma')
-    .version('1.0.0', '-v')
+    .version('1.0.2', '-v')
     .description('A CLI tool for analyzing web pages')
     .option('-u, --url <url>', 'URL of the web page to analyze')
     .option('-f, --file <filePath>', 'File Path of the HTML to analyze')
+    .option('-d, --debug', 'output the process in debug mode')
     .parse(process.argv);
 
   const options = program.opts();
 
   let url: string | undefined;
-  let html: string | undefined;
+  let filePath: string | undefined;
+  const debug: boolean = options.debug || false;
 
-  if (!options.url && !options.html) {
+  if (!options.url && !options.file) {
     const answer = await inquirer.prompt([
       {
         type: 'list',
@@ -55,27 +58,41 @@ export async function runCLI() {
           validate: (input) => input.trim() !== '',
         },
       ]);
-      html = htmlAnswer.html;
+      filePath = htmlAnswer.html;
     }
   } else {
     url = options.url;
-    html = options.html;
+    filePath = options.file;
   }
 
   const spinner = createSpinner('Analyzing...').start();
 
   try {
-    const browser = await launchBrowser();
-    const page = await createPage(browser, url, html);
+
+    if (url && !isValidUrl(url)) {
+      throw new Error('Invalid URL');
+    }
+
+    if (filePath && !isValidFilePath(filePath)) {
+      throw new Error('Invalid HTML file path');
+    }
+
+    let absoluteHtmlPath: string | null = null;
+    if (filePath) {
+      absoluteHtmlPath = getValidFilePath(filePath);
+    }
+
+    const browser = await launchBrowser(debug);
+    const page = await createPage(browser, url, absoluteHtmlPath);
     const results = await analyzeWebPage(page);
     await browser.close();
 
     spinner.success({ text: 'Analysis complete!' });
 
     displayResults(results);
-  } catch (error) {
+  } catch (error: any) {
     spinner.error({ text: 'Analysis failed!' });
-    console.error(chalk.red('Error:'), error);
+    console.error(chalk.red('Error:'), error.message);
     process.exit(1);
   }
 }
@@ -85,7 +102,7 @@ function displayResults(results: AnalysisResults) {
   const logTextAsTable = (rows: (string | number)[][], totalRow: (string | number)[] = []) => {
     const maxLabelLength = Math.max(...rows.map(row => String(row[0]).length));
     const maxValueLength = Math.max(...rows.map(row => String(row[1]).length));
-    const padding = 1; // Additional padding for space after the colon
+    const padding = 1;
 
     rows.forEach(([label, value]) => {
       const labelStr = String(label).padEnd(maxLabelLength + padding, ' ');

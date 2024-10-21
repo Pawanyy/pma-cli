@@ -1,13 +1,14 @@
 {
   "name": "pma-cli",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "description": "CLI tool for analyzing web pages",
   "main": "dist/index.js",
   "type": "module",
   "scripts": {
     "start": "node dist/index.js",
     "build": "tsc",
-    "dev": "tsc -w"
+    "dev": "tsc -w",
+    "publish": "tsc && npm publish --access public"
   },
   "bin": {
     "pma": "./dist/index.js"
